@@ -18,6 +18,7 @@ import AdminLayout from './components/adminLayout';
 import AsignacionEmpresas from './components/AsignacionEmpresas';
 import PrestadorLayout from './components/PrestadorLayout';
 import MisTareas from './components/MisTareas';
+import AsignacionTareas from './components/AsignacionTareas';
 
 
 
@@ -105,6 +106,7 @@ const App = () => {
               <Route path="empresas" element={<GestionEmpresas />} />
               <Route path="tareas" element={<GestionTareas />} />
               <Route path="asignacion-empresas" element={<AsignacionEmpresas />} />
+              <Route path="asignacion-tareas" element={<AsignacionTareas />} />
             </Route>
             {/* Dashboard Prestador con sidebar */}
             <Route path="/prestador" element={<ProtectedRoute element={<PrestadorLayout />} />} >

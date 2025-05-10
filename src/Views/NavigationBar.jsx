@@ -84,6 +84,11 @@ const NavigationBar = () => {
                     {nombreDB && (
                         <>
                             <li>
+                                <Link to="/prestador" className="text-slate-900 font-semibold">
+                                    Dashboard Prestador
+                                </Link>
+                            </li>
+                            <li>
                                 <Link to="/profile-page" className="text-slate-900 font-semibold">
                                     Perfil
                                 </Link>
