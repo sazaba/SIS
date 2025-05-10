@@ -46,7 +46,9 @@ const api = {
     getUsuariosOptions: () => userApi.get('/usuarios_empresa/options/usuarios'),
     getEmpresasOptions: () => userApi.get('/usuarios_empresa/options/empresas'),
 
+    // NUEVA FUNCIÓN PARA OBTENER EMPRESAS DE USUARIO
 
+    getEmpresasByUsuario: (cedula) => userApi.get(`/usuarios_empresa/mis-empresas/${cedula}`),
 
 
 };
