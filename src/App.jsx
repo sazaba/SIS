@@ -19,6 +19,7 @@ import AsignacionEmpresas from './components/AsignacionEmpresas';
 import PrestadorLayout from './components/PrestadorLayout';
 import MisTareas from './components/MisTareas';
 import AsignacionTareas from './components/AsignacionTareas';
+import GestionPrestadorTareas from './components/gestionPrestadorTareas';
 
 
 
@@ -110,8 +111,9 @@ const App = () => {
             </Route>
             {/* Dashboard Prestador con sidebar */}
             <Route path="/prestador" element={<ProtectedRoute element={<PrestadorLayout />} />} >
-              <Route index element={<MisTareas />} />
+              {/* <Route index element={<MisTareas />} /> */}
               <Route path="mis-tareas" element={<MisTareas />} />
+              <Route path="mis-tareas/:empresaId" element={<GestionPrestadorTareas />} />
             </Route>
 
             {/* Rutas legacy (opcionalmente se pueden redirigir a /admin/...) */}

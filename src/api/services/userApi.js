@@ -49,28 +49,26 @@ const api = {
     // OBTENER EMPRESAS DE USUARIO en MisTareas.jsx
     getEmpresasByUsuario: (cedula) => userApi.get(`/usuarios_empresa/mis-empresas/${cedula}`),
 
+
     // Funciones relacionadas con asignación empresa ↔ tarea
-    /** 
-     * Obtener asignaciones (opcional puedes pasar { idEmpresa, idTarea } como filtro)
-     */
     getEmpresaTareas: (filters) =>
         userApi.get('/empresa-tareas', { params: filters }),
-
-    /**
-     * Asignar una tarea a una empresa
-     * body: { idEmpresa: number, idTarea: number }
-     */
     assignTareaToEmpresa: (data) =>
         userApi.post('/empresa-tareas', data),
-
-    /**
-     * Desasignar tarea de empresa
-     * para DELETE con body en Axios debes usar config.data
-     */
     unassignTareaFromEmpresa: (idEmpresa, idTarea) =>
         userApi.delete('/empresa-tareas', {
             params: { idEmpresa, idTarea }
         }),
+
+    // funciones de gestionPrestadorTarea - UNIFICADAS en /gestion-prestador-tareas
+    getGestionTareas: (empresaId) =>
+        userApi.get('/gestion-prestador-tareas', { params: { empresaId } }),
+    createGestionTarea: (data) =>
+        userApi.post('/gestion-prestador-tareas', data),
+    updateGestionTarea: (data) =>
+        userApi.put('/gestion-prestador-tareas', data),
+    deleteGestionTarea: (empresaId, tareaId) =>
+        userApi.delete('/gestion-prestador-tareas', { params: { empresaId, tareaId } }),
 };
 
 
