@@ -69,6 +69,11 @@ const api = {
         userApi.put('/gestion-prestador-tareas', data),
     deleteGestionTarea: (empresaId, tareaId) =>
         userApi.delete('/gestion-prestador-tareas', { params: { empresaId, tareaId } }),
+
+    getHistorialGestion: (empresaId, tareaId) =>
+        userApi.get('/gestion-prestador-tareas/historial', {
+            params: { empresaId, tareaId }
+        }),
 };
 
 

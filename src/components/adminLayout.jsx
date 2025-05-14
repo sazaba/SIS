@@ -1,62 +1,111 @@
-// src/pages/AdminDashboard/AdminLayout.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
+import { Drawer, Button } from 'antd';
+import {
+    MenuOutlined,
+    CloseOutlined,
+    UserOutlined,
+    BankOutlined,
+    CheckCircleOutlined,
+    FolderOpenOutlined,
+    ProfileOutlined,
+} from '@ant-design/icons';
 
 export default function AdminLayout() {
+    const [collapsed, setCollapsed] = useState(false);
+    const [drawerVisible, setDrawerVisible] = useState(false);
+
+    const items = [
+        { to: 'usuarios', label: 'Gestión de Usuarios', icon: <UserOutlined /> },
+        { to: 'empresas', label: 'Gestión de Empresas', icon: <BankOutlined /> },
+        { to: 'tareas', label: 'Gestión de Tareas', icon: <CheckCircleOutlined /> },
+        { to: 'asignacion-empresas', label: 'Asignaciones Empresas', icon: <FolderOpenOutlined /> },
+        { to: 'asignacion-tareas', label: 'Asignaciones Tareas', icon: <ProfileOutlined /> },
+    ];
+
+    const menuLinks = (
+        <nav className="space-y-2 px-4">
+            {items.map((item) => (
+                <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setDrawerVisible(false)}
+                    className={({ isActive }) =>
+                        `flex items-center w-full text-left px-3 py-2 rounded transition ${isActive
+                            ? 'bg-blue-800 font-medium text-white'
+                            : 'hover:bg-gray-700 text-gray-300'
+                        }`
+                    }
+                >
+                    <span className="mr-2 text-lg">{item.icon}</span>
+                    {item.label}
+                </NavLink>
+            ))}
+        </nav>
+    );
+
     return (
-        <div className="flex h-screen">
-            <aside className="w-64 bg-white shadow-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Menú</h3>
-                <nav className="space-y-2">
-                    <NavLink
-                        to="usuarios"
-                        className={({ isActive }) =>
-                            `block w-full text-left px-3 py-2 rounded transition ${isActive ? 'bg-blue-100 font-medium text-blue-800' : 'hover:bg-gray-200'
-                            }`
-                        }
+        <div className="flex h-screen bg-gray-900 text-gray-100 ">
+            {/* Sidebar Desktop */}
+            <aside
+                className={`hidden md:flex flex-col ${collapsed ? 'w-16' : 'w-64'
+                    } bg-gray-800 shadow-lg transition-width duration-200 rounded-md`}
+            >
+                <div className="flex items-center justify-between p-4">
+                    {!collapsed && <h3 className="text-xl font-bold">Menú</h3>}
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="p-1 hover:bg-gray-700 rounded"
                     >
-                        Gestión de Usuarios
-                    </NavLink>
-                    <NavLink
-                        to="empresas"
-                        className={({ isActive }) =>
-                            `block w-full text-left px-3 py-2 rounded transition ${isActive ? 'bg-blue-100 font-medium text-blue-800' : 'hover:bg-gray-200'
-                            }`
-                        }
-                    >
-                        Gestión de Empresas
-                    </NavLink>
-                    <NavLink
-                        to="tareas"
-                        className={({ isActive }) =>
-                            `block w-full text-left px-3 py-2 rounded transition ${isActive ? 'bg-blue-100 font-medium text-blue-800' : 'hover:bg-gray-200'
-                            }`
-                        }
-                    >
-                        Gestión de Tareas
-                    </NavLink>
-
-                    <NavLink
-                        to="asignacion-empresas"
-                        className={({ isActive }) =>
-                            `block w-full text-left px-3 py-2 rounded transition ${isActive ? 'bg-blue-100 font-medium text-blue-800' : 'hover:bg-gray-200'}`
-                        }
-                    >
-                        Asignaciones Empresas
-                    </NavLink>
-
-                    <NavLink
-                        to="asignacion-tareas"
-                        className={({ isActive }) =>
-                            `block w-full text-left px-3 py-2 rounded transition ${isActive ? 'bg-blue-100 font-medium text-blue-800' : 'hover:bg-gray-200'}`
-                        }
-                    >
-                        Asignaciones Tareas
-                    </NavLink>
-
-                </nav>
+                        {collapsed ? <MenuOutlined /> : <CloseOutlined />}
+                    </button>
+                </div>
+                <div className="flex-1 overflow-auto px-2">
+                    {collapsed ? (
+                        <div className="space-y-4 text-center text-xl">
+                            {items.map((i) => (
+                                <span key={i.to} title={i.label} className="block">
+                                    {i.icon}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        menuLinks
+                    )}
+                </div>
             </aside>
-            <main className="flex-1 p-6 bg-gray-50 overflow-auto">
+
+            {/* Mobile Bottom Bubble Hamburger */}
+            <div className="md:hidden fixed bottom-4 right-4 z-20">
+                <Button
+                    type="primary"
+                    shape="circle"
+                    size="large"
+                    icon={<MenuOutlined style={{ fontSize: '24px' }} />}
+                    onClick={() => setDrawerVisible(true)}
+                />
+            </div>
+
+            {/* Mobile Bottom Sheet */}
+            <Drawer
+                placement="bottom"
+                closable={false}
+                onClose={() => setDrawerVisible(false)}
+                visible={drawerVisible}
+                height="60vh"
+                bodyStyle={{
+                    backgroundColor: '#1f2937',
+                    borderTopLeftRadius: '12px',
+                    borderTopRightRadius: '12px',
+                    paddingTop: '16px',
+                }}
+                drawerStyle={{ backgroundColor: '#1f2937' }}
+            >
+                {menuLinks}
+            </Drawer>
+
+            {/* Main Content */}
+            <main className="flex-1 p-6 overflow-auto">
                 <Outlet />
             </main>
         </div>

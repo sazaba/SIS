@@ -7,7 +7,7 @@ import MyContext from '../context/Mycontext';
 
 const { Title, Text } = Typography;
 
-export default function MisTareas() {
+export default function EmpresasAsignadasPrestador() {
     const { cedulaDB } = useContext(MyContext);
     const [empresas, setEmpresas] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -66,7 +66,7 @@ export default function MisTareas() {
                                     </div>
 
                                     <Link
-                                        to={`/prestador/mis-tareas/${empresa.id_empresa}`}
+                                        to={`/prestador/empresas-asignadas-prestador/${empresa.id_empresa}`}
                                         className="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200 rounded-full py-2 px-4 flex items-center justify-center gap-2"
                                     >
                                         Ver más <ArrowRightOutlined />

@@ -1,110 +1,146 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Drawer, Button } from 'antd';
+import { MenuOutlined, HomeOutlined } from '@ant-design/icons';
 import logo from '../images/logo_SIS.png';
 import userApi from '../api/services/userApi';
 import MyContext from '../context/Mycontext';
-import HomeIcon from '@mui/icons-material/Home';
-
-
 
 const NavigationBar = () => {
     const { nombreDB, actualizarNombreDB, perfilDB, actualizarPerfilDB, token, actualizarToken } = useContext(MyContext);
     const navigate = useNavigate();
-    const { pathname } = useLocation(); // Utiliza useLocation para obtener la ruta actual
+    const { pathname } = useLocation();
+    const [drawerVisible, setDrawerVisible] = useState(false);
 
-
-
+    const showDrawer = () => setDrawerVisible(true);
+    const closeDrawer = () => setDrawerVisible(false);
 
     const handleLogout = async () => {
         try {
-            // Eliminar el token del localStorage
             localStorage.removeItem('token');
-
-            // Enviar una solicitud al servidor para manejar el logout
             await userApi.logout();
-
-            // Limpiar el nombre, perfil y token utilizando el contexto
             actualizarNombreDB('');
             actualizarPerfilDB('');
             actualizarToken('');
-
-            // Redirigir a la página principal
             navigate('/');
         } catch (error) {
             console.error('Error al cerrar sesión:', error);
-            // Puedes manejar el error de acuerdo a tus necesidades
         }
     };
 
-
-
-
+    // Añadimos closeDrawer() en cada Link o botón
+    const menuItems = (
+        <ul className="flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0">
+            {pathname !== '/' && (
+                <li>
+                    <Link
+                        to="/"
+                        onClick={closeDrawer}
+                        className="flex items-center text-white hover:text-gray-300"
+                    >
+                        <HomeOutlined style={{ fontSize: '20px', color: 'cyan' }} />
+                    </Link>
+                </li>
+            )}
+            {nombreDB && pathname === '/' && (
+                <li className="text-white font-semibold">
+                    Bienvenid@ <span className="text-blue-400">{nombreDB}</span>
+                </li>
+            )}
+            {perfilDB === 'administrador' && (
+                <li>
+                    <Link
+                        to="/admin"
+                        onClick={closeDrawer}
+                        className="text-white font-semibold hover:text-gray-300"
+                    >
+                        Dashboard Admin
+                    </Link>
+                </li>
+            )}
+            {!nombreDB && (
+                <li>
+                    <Link
+                        to="/login"
+                        onClick={closeDrawer}
+                        className="text-white font-semibold hover:text-gray-300"
+                    >
+                        Iniciar Sesión
+                    </Link>
+                </li>
+            )}
+            {nombreDB && (
+                <>
+                    <li>
+                        <Link
+                            to="/prestador"
+                            onClick={closeDrawer}
+                            className="text-white font-semibold hover:text-gray-300"
+                        >
+                            Dashboard Prestador
+                        </Link>
+                    </li>
+                    <li>
+                        <Link
+                            to="/profile-page"
+                            onClick={closeDrawer}
+                            className="text-white font-semibold hover:text-gray-300"
+                        >
+                            Perfil
+                        </Link>
+                    </li>
+                    <li>
+                        <button
+                            onClick={() => {
+                                handleLogout();
+                                closeDrawer();
+                            }}
+                            className="text-white font-semibold hover:text-gray-300"
+                        >
+                            Cerrar Sesión
+                        </button>
+                    </li>
+                </>
+            )}
+        </ul>
+    );
 
     return (
-        <nav className="bg-white p-2 shadow-md">
-            <div className="container mx-auto flex justify-between items-center">
-                {/* Logo a la izquierda */}
-                <Link to="/" className="text-slate-900 text-2xl font-bold">
-                    <img className='w-20' src={logo} alt="logo SIS" />
+        <nav className="bg-gray-900 text-white shadow-md">
+            <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+                <Link to="/" className="flex items-center" onClick={closeDrawer}>
+                    <img src={logo} alt="logo SIS" className="w-24" />
                 </Link>
 
-                {/* Menú de navegación */}
+                {/* Desktop Menu */}
+                <div className="hidden md:flex items-center">
+                    {menuItems}
+                </div>
 
-                <ul className="flex space-x-4">
-
-                    {pathname !== '/' && (
-                        <li>
-                            <Link to="/">
-                                <HomeIcon className="w-6 h-6" color="primary" />
-                            </Link>
-                        </li>
-                    )}
-                    {nombreDB && window.location.pathname === '/' && (
-                        <li>
-                            <span className='text-slate-900 font-semibold'>
-                                Bienvenid@ <span className='text-blue-800'>{nombreDB}</span>
-                            </span>
-
-                        </li>
-                    )}
-                    {perfilDB === 'administrador' && (
-                        <li>
-                            <Link to="/admin" className="text-slate-900 font-semibold">
-                                Dashboard Administrador
-                            </Link>
-                        </li>
-                    )}
-                    {!nombreDB && (
-                        <li>
-                            <Link to="/login" className="text-slate-900 font-semibold">
-                                Iniciar Sesión
-                            </Link>
-                        </li>
-                    )}
-                    {nombreDB && (
-                        <>
-                            <li>
-                                <Link to="/prestador" className="text-slate-900 font-semibold">
-                                    Dashboard Prestador
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="/profile-page" className="text-slate-900 font-semibold">
-                                    Perfil
-                                </Link>
-                            </li>
-                            <li>
-                                <button className="text-slate-900 font-semibold" onClick={handleLogout}>
-                                    Cerrar Sesión
-                                </button>
-                            </li>
-                        </>
-                    )}
-                </ul>
+                {/* Mobile Hamburger */}
+                <div className="md:hidden">
+                    <Button
+                        type="text"
+                        icon={<MenuOutlined style={{ fontSize: '24px', color: 'white' }} />}
+                        onClick={showDrawer}
+                    />
+                </div>
             </div>
-        </nav >
+
+            {/* Mobile Drawer */}
+            <Drawer
+                title={<img src={logo} alt="logo SIS" className="w-20 mb-4" />}
+                placement="right"
+                closable={true}
+                onClose={closeDrawer}
+                visible={drawerVisible}
+                bodyStyle={{ backgroundColor: '#1f2937', paddingTop: 0 }}
+                drawerStyle={{ backgroundColor: '#1f2937' }}
+            >
+                {menuItems}
+            </Drawer>
+        </nav>
     );
 };
 
 export default NavigationBar;
-
