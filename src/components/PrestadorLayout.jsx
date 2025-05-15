@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Drawer, Button } from 'antd';
-import { MenuOutlined, CloseOutlined, ShopOutlined } from '@ant-design/icons';
+import { Drawer, Button, Affix } from 'antd';
+import { MenuOutlined, CloseOutlined, ShopOutlined, AppstoreOutlined } from '@ant-design/icons';
 
 export default function PrestadorLayout() {
     const { pathname } = useLocation();
@@ -72,15 +72,25 @@ export default function PrestadorLayout() {
             </aside>
 
             {/* Mobile Bottom Bubble Hamburger */}
-            <div className="md:hidden fixed bottom-4 right-4 z-20">
+
+            <Affix
+                style={{
+                    position: 'fixed',
+                    bottom: 16,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 20,
+                }}
+            >
                 <Button
+                    className='md:hidden'
                     type="primary"
                     shape="circle"
                     size="large"
-                    icon={<MenuOutlined style={{ fontSize: '24px' }} />}
+                    icon={<AppstoreOutlined style={{ fontSize: 28 }} />}
                     onClick={showDrawer}
                 />
-            </div>
+            </Affix>
 
             {/* Mobile Bottom Sheet */}
             <Drawer

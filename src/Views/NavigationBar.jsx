@@ -106,7 +106,7 @@ const NavigationBar = () => {
     );
 
     return (
-        <nav className="bg-gray-900 text-white shadow-md">
+        <nav className="bg-gray-900 text-white shadow-md" >
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                 <Link to="/" className="flex items-center" onClick={closeDrawer}>
                     <img src={logo} alt="logo SIS" className="w-24" />

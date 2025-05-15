@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Drawer, Button } from 'antd';
+import { Drawer, Button, Affix } from 'antd';
 import {
     MenuOutlined,
     CloseOutlined,
@@ -9,6 +9,8 @@ import {
     CheckCircleOutlined,
     FolderOpenOutlined,
     ProfileOutlined,
+    AppstoreOutlined,
+
 } from '@ant-design/icons';
 
 export default function AdminLayout() {
@@ -75,16 +77,26 @@ export default function AdminLayout() {
                 </div>
             </aside>
 
-            {/* Mobile Bottom Bubble Hamburger */}
-            <div className="md:hidden fixed bottom-4 right-4 z-20">
+            {/* Mobile Bottom Bubble Toggle (centrado con nuevo ícono) */}
+            <Affix
+                style={{
+                    position: 'fixed',
+                    bottom: 16,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 20,
+                }}
+            >
                 <Button
+                    className='md:hidden'
                     type="primary"
                     shape="circle"
                     size="large"
-                    icon={<MenuOutlined style={{ fontSize: '24px' }} />}
+                    icon={<AppstoreOutlined style={{ fontSize: 28 }} />}
                     onClick={() => setDrawerVisible(true)}
                 />
-            </div>
+            </Affix>
+
 
             {/* Mobile Bottom Sheet */}
             <Drawer

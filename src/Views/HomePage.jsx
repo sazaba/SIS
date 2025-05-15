@@ -1,33 +1,71 @@
-import React, { useContext } from 'react';
-import { Link } from 'react-router-dom';
-import AddTaskIcon from '@mui/icons-material/AddTask';
-import QueryStatsIcon from '@mui/icons-material/QueryStats';
+// src/pages/HomePage.jsx
 
+import React from 'react';
+import { Layout, Button, Typography, Row, Col, Card } from 'antd';
+import office from '../images/office.webp';
 
-const HomePage = () => {
+const { Content, Footer } = Layout;
+const { Title, Paragraph } = Typography;
+
+const features = [
+    { title: 'Gestión Simple', description: 'Organiza tareas de seguridad con un solo clic.' },
+    { title: 'Reportes Claros', description: 'Accede a métricas en tiempo real.' },
+    { title: 'Cumplimiento Normativo', description: 'Automatiza procesos y evita sanciones.' },
+];
+
+export default function HomePage() {
     return (
-        <div className="container mx-auto mt-8 flex flex-col items-center">
-
-            <h1 className="text-4xl font-bold mb-4 text-center">Bienvenido a tu Sistema Integral en Riesgos Laborales</h1>
-            <p className="text-md mb-4 text-center">
-                "Optimiza la gestión integral de seguridad y salud en el trabajo para tu empresa en Colombia con nuestra plataforma especializada. Desde seguimiento de protocolos de seguridad hasta análisis de riesgos, simplificamos el cumplimiento normativo, garantizando un entorno laboral seguro y saludable."<br /><br /> Descubre la tranquilidad de una gestión eficiente con nuestro aplicativo web.
-            </p>
-            <div className='flex space-x-5 justify-around mt-3'>
-
-                <div className='flex flex-col items-center cursor-pointer'>
-                    <AddTaskIcon style={{ fontSize: 70 }} />
-                    <p>Gestión a tareas</p>
+        <Layout className="bg-gray-900 text-gray-100 min-h-screen">
+            <Content>
+                {/* Hero */}
+                <div className="relative w-full h-[60vh] sm:h-[70vh] md:h-[80vh]">
+                    <img
+                        src={office}
+                        alt="Oficina"
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center px-4">
+                        <Title
+                            level={2}
+                            className="text-white text-3xl sm:text-4xl md:text-5xl font-bold text-center"
+                        >
+                            Sistema Integral en Riesgos Laborales
+                        </Title>
+                        <Paragraph className="text-gray-200 text-center max-w-xl mt-2">
+                            Simplifica la gestión de seguridad y salud en el trabajo para PYMEs en Colombia.
+                        </Paragraph>
+                        <Button
+                            type="primary"
+                            size="large"
+                            className="bg-cyan-500 border-none mt-4 hover:bg-cyan-600 transition-colors"
+                        >
+                            Comienza Ahora
+                        </Button>
+                    </div>
                 </div>
 
-                <div className='flex flex-col items-center cursor-pointer'>
-                    <QueryStatsIcon style={{ fontSize: 70 }} />
-                    <p>Consultas</p>
+                {/* Características */}
+                <div className="container mx-auto px-4 py-12">
+                    <Row gutter={[24, 24]}>
+                        {features.map((feature, idx) => (
+                            <Col xs={24} sm={12} md={8} key={idx}>
+                                <Card className="bg-gray-800 border-none hover:shadow-lg transition-shadow p-6">
+                                    <Title level={4} className="text-cyan-400 mb-2">
+                                        {feature.title}
+                                    </Title>
+                                    <Paragraph className="text-gray-300">
+                                        {feature.description}
+                                    </Paragraph>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
                 </div>
+            </Content>
 
-
-            </div>
-        </div>
+            <Footer className="bg-gray-800 text-gray-500 text-center py-6">
+                ©2025 SIS - Sistema Integral en Riesgos Laborales
+            </Footer>
+        </Layout>
     );
-};
-
-export default HomePage;
+}

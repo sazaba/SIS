@@ -1,446 +1,500 @@
 import React, { useEffect, useState } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { Pencil, Trash2, Plus, Search } from 'lucide-react';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
+import {
+    Table,
+    Drawer,
+    Steps,
+    Form,
+    Input,
+    Select,
+    Button,
+    Row,
+    Col,
+    Space,
+    ConfigProvider,
+    theme,
+    Modal,
+    message
+} from 'antd';
+
+import {
+    SearchOutlined,
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+} from '@ant-design/icons';
 import userApi from '../api/services/userApi';
 
-const MySwal = withReactContent(Swal);
+const { Option } = Select;
 
-// Componentes reutilizables
-const Field = ({ label, name, value, onChange }) => (
-    <div className="flex flex-col">
-        <label className="mb-1 text-gray-700 capitalize text-sm sm:text-base">{label}</label>
-        <input
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="border rounded-lg p-2 focus:outline-none focus:ring text-sm sm:text-base"
-        />
-    </div>
-);
-
-const Textarea = ({ label, name, value, onChange }) => (
-    <div className="flex flex-col">
-        <label className="mb-1 text-gray-700 capitalize text-sm sm:text-base">{label}</label>
-        <textarea
-            name={name}
-            value={value}
-            onChange={onChange}
-            rows={3}
-            className="border rounded-lg p-2 focus:outline-none focus:ring text-sm sm:text-base"
-        />
-    </div>
-);
-
-const Select = ({ label, name, value, options, onChange }) => (
-    <div className="flex flex-col">
-        <label className="mb-1 text-gray-700 capitalize text-sm sm:text-base">{label}</label>
-        <select
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="border rounded-lg p-2 focus:outline-none focus:ring text-sm sm:text-base"
-        >
-            <option value="">— Selecciona —</option>
-            {options.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-        </select>
-    </div>
-);
-
-// Formulario inicial para tareas
-const initialForm = {
-    codigo_tarea: '',
-    tarea: '',
-    plan_accion_especifico: '',
-    fundamentos_y_soporte: '',
-    id_estandar: '',
-    id_categoria_estandar: '',
-    id_phva: '',
-    id_metas_estandar: '',
-    id_recurso_administrativo: '',
-    id_responsable_actividad: '',
-    id_proceso: '',
-    id_requisito_1072: '',
-    id_requisito_4501: '',
-    '7_estandares': '',
-    '21_estandares': '',
-    '60_estandares': ''
-};
+// Helper para títulos
+const prettify = key =>
+    key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
 
 export default function GestionTareas() {
     const [tareas, setTareas] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [sel, setSel] = useState(null);
-    const [catalogos, setCatalogos] = useState({
-        estandares: [], categorias: [], phva: [], metas: [], recursos: [],
-        responsables: [], procesos: [], requisito1072: [], requisito4501: []
-    });
-    const [formulario, setFormulario] = useState(initialForm);
-    const [showTable, setShowTable] = useState(false);
-    const [editar, setEditar] = useState(false);
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = () => {
-        userApi.getTareasCompleto()
-            .then(({ data }) => setTareas(data))
-            .catch(err => console.error('Error cargando tareas:', err));
-        userApi.getCatalogos()
-            .then(({ data }) => setCatalogos(data))
-            .catch(err => console.error('Error cargando catálogos:', err));
-    };
-
-    // Helpers descriptivos
-    const getEstandar = id => catalogos.estandares.find(e => e.id_estandar === id)?.estandar || id;
-    const getCategoria = id => catalogos.categorias.find(c => c.id_categoria_estandar === id)?.categoria_estandar || id;
-    const getPHVA = id => catalogos.phva.find(p => p.id_phva === id)?.ciclo || id;
-    const getMetas = id => catalogos.metas.find(m => m.id_metas_estandar === id)?.metas || id;
-    const getRecurso = id => catalogos.recursos.find(r => r.id_recurso_administrativo === id)?.tipo_recurso || id;
-    const getResponsable = id => catalogos.responsables.find(r => r.id_responsable_actividad === id)?.responsable || id;
-    const getProceso = id => {
-        const p = catalogos.procesos.find(p => p.id_proceso === id);
-        return p ? `${p.codigo_proceso} – ${p.proceso}` : id;
-    };
-    const getReq1072 = id => catalogos.requisito1072.find(r => r.id_requisito_1072 === id)?.requisito_1072 || id;
-    const getReq4501 = id => catalogos.requisito4501.find(r => r.id_requisito_4501 === id)?.requisito_4501 || id;
-
-    // Buscador
-    const handleSearch = e => {
-        setSearchTerm(e.target.value.toLowerCase());
-    };
-
-    const tareasFiltradas = tareas.filter(t =>
-        t.descripcion_tarea.toLowerCase().includes(searchTerm) ||
-        t.codigo_tarea.toLowerCase().includes(searchTerm)
-    );
-
-    // Handlers de modal
-    const handleAdd = () => {
-        setFormulario(initialForm);
-        setSel(null);
-        setEditar(false);
-        setShowTable(true);
-    };
-
-    const handleEdit = t => {
-        setSel(t);
-        setFormulario({
-            codigo_tarea: t.codigo_tarea,
-            tarea: t.descripcion_tarea,
-            plan_accion_especifico: t.plan_accion_especifico,
-            fundamentos_y_soporte: t.fundamentos_y_soporte,
-            id_estandar: t.id_estandar || '',
-            id_categoria_estandar: t.id_categoria_estandar || '',
-            id_phva: t.id_phva || '',
-            id_metas_estandar: t.id_metas_estandar || '',
-            id_recurso_administrativo: t.id_recurso_administrativo || '',
-            id_responsable_actividad: t.id_responsable_actividad || '',
-            id_proceso: t.id_proceso || '',
-            id_requisito_1072: t.id_requisito_1072 || '',
-            id_requisito_4501: t.id_requisito_4501 || '',
-            '7_estandares': t['7_estandares'] || '',
-            '21_estandares': t['21_estandares'] || '',
-            '60_estandares': t['60_estandares'] || ''
-        });
-        setEditar(true);
-        setShowTable(true);
-    };
-
-    const handleClose = () => setShowTable(false);
-
-    const handleInputChange = e => {
-        const { name, value } = e.target;
-        setFormulario(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = e => {
-        e.preventDefault();
-        const payload = {
-            ...formulario,
-            id_estandar: +formulario.id_estandar,
-            id_categoria_estandar: +formulario.id_categoria_estandar,
-            id_phva: +formulario.id_phva,
-            id_metas_estandar: +formulario.id_metas_estandar,
-            id_recurso_administrativo: +formulario.id_recurso_administrativo,
-            id_responsable_actividad: +formulario.id_responsable_actividad,
-            id_proceso: +formulario.id_proceso,
-            id_requisito_1072: +formulario.id_requisito_1072,
-            id_requisito_4501: +formulario.id_requisito_4501
-        };
-
-        if (editar) {
-            MySwal.fire({
-                title: '¿Actualizar tarea?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Sí, actualizar',
-                cancelButtonText: 'Cancelar'
-            }).then(result => {
-                if (result.isConfirmed) {
-                    userApi.updateTarea(sel.id_tarea, payload)
-                        .then(() => {
-                            setTareas(prev =>
-                                prev.map(x =>
-                                    x.id_tarea === sel.id_tarea
-                                        ? { ...x, ...payload, descripcion_tarea: payload.tarea }
-                                        : x
-                                )
-                            );
-                            MySwal.fire('👍', 'Tarea actualizada', 'success');
-                            handleClose();
-                        })
-                        .catch(() => MySwal.fire('Error', 'No se pudo actualizar', 'error'));
-                }
-            });
-        } else {
-            userApi.createTarea(payload)
-                .then(({ data }) => {
-                    setTareas(prev => [
-                        ...prev,
-                        { id_tarea: data.id_tarea, descripcion_tarea: payload.tarea, ...payload }
-                    ]);
-                    MySwal.fire('👍', 'Tarea creada', 'success');
-                    handleClose();
-                })
-                .catch(() => MySwal.fire('Error', 'No se pudo crear', 'error'));
-        }
-    };
-
-    const handleDelete = t => {
-        MySwal.fire({
-            title: '¿Eliminar tarea?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(result => {
-            if (result.isConfirmed) {
-                userApi.deleteTarea(t.id_tarea)
-                    .then(() => {
-                        setTareas(prev => prev.filter(item => item.id_tarea !== t.id_tarea));
-                        MySwal.fire('Eliminada', 'Tarea eliminada', 'success');
-                    })
-                    .catch(() => MySwal.fire('Error', 'No se pudo eliminar', 'error'));
-            }
-        });
-    };
+    const [catalogos, setCatalogos] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [searchText, setSearchText] = useState('');
+    const [filtered, setFiltered] = useState([]);
+    const [drawerVisible, setDrawerVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [current, setCurrent] = useState(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
+    const [form] = Form.useForm();
 
     const booleanOptions = [
         { value: 'aplica', label: 'Aplica' },
-        { value: 'no aplica', label: 'No Aplica' }
+        { value: 'no aplica', label: 'No Aplica' },
+    ];
+
+    // CSS overrides: th nowrap, td wrap
+    const styleOverrides = `
+.ant-table-thead > tr > th.ant-table-cell {
+  white-space: nowrap !important;
+}
+.ant-table-tbody > tr > td.ant-table-cell {
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+`;
+
+    // Carga inicial
+    useEffect(() => {
+        setLoading(true);
+        Promise.all([userApi.getTareasCompleto(), userApi.getCatalogos()])
+            .then(([tRes, cRes]) => {
+                setTareas(tRes.data);
+                setCatalogos(cRes.data);
+                setFiltered(tRes.data);
+            })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, []);
+
+    // Filtrado
+    useEffect(() => {
+        const term = searchText.toLowerCase();
+        setFiltered(
+            tareas.filter(
+                t =>
+                    t.descripcion_tarea.toLowerCase().includes(term) ||
+                    t.codigo_tarea.toLowerCase().includes(term)
+            )
+        );
+    }, [searchText, tareas]);
+
+    // Abrir drawer en modo nuevo
+    const openNew = () => {
+        form.resetFields();
+        setIsEditing(false);
+        setCurrent(null);
+        setDrawerVisible(true);
+    };
+
+    // Abrir drawer en modo edición
+    const openEdit = record => {
+        form.setFieldsValue({
+            ...record,
+            tarea: record.descripcion_tarea,
+        });
+        setIsEditing(true);
+        setCurrent(record);
+        setDrawerVisible(true);
+    };
+
+    // Borrar tarea con Modal.confirm
+
+    const handleDelete = record => {
+        Modal.confirm({
+            title: '¿Eliminar tarea?',
+            okText: 'Sí',
+            cancelText: 'No',
+            okButtonProps: {
+                type: 'primary',             // botón principal destacado
+                style: {                     // fondo oscuro para resaltar
+                    backgroundColor: '#374151',
+                    borderColor: '#374151',
+                    color: '#fff',
+                },
+            },
+            cancelButtonProps: {
+                style: {                     // texto claro para el botón cancelar
+                    color: '#374151',
+                },
+            },
+            onOk: async () => {
+                await userApi.deleteTarea(record.id_tarea);
+                message.success('Tarea eliminada');
+                // recarga
+                const [tRes, cRes] = await Promise.all([
+                    userApi.getTareasCompleto(),
+                    userApi.getCatalogos(),
+                ]);
+                setTareas(tRes.data);
+                setFiltered(tRes.data);
+                setCatalogos(cRes.data);
+            },
+        });
+    };
+
+
+    // Guardar (crear o actualizar)
+    const handleOk = async () => {
+        try {
+            const values = await form.validateFields();
+            setConfirmLoading(true);
+            const payload = {
+                ...values,
+                descripcion_tarea: values.tarea,
+                id_estandar: +values.id_estandar,
+                id_categoria_estandar: +values.id_categoria_estandar,
+                id_phva: +values.id_phva,
+                id_metas_estandar: +values.id_metas_estandar,
+                id_recurso_administrativo: +values.id_recurso_administrativo,
+                id_responsable_actividad: +values.id_responsable_actividad,
+                id_proceso: +values.id_proceso,
+                id_requisito_1072: +values.id_requisito_1072,
+                id_requisito_4501: +values.id_requisito_4501,
+            };
+            if (isEditing) {
+                await userApi.updateTarea(current.id_tarea, payload);
+                message.success('Tarea actualizada');
+            } else {
+                await userApi.createTarea(payload);
+                message.success('Tarea creada');
+            }
+            setDrawerVisible(false);
+            // recarga
+            const [tRes, cRes] = await Promise.all([
+                userApi.getTareasCompleto(),
+                userApi.getCatalogos(),
+            ]);
+            setTareas(tRes.data);
+            setFiltered(tRes.data);
+            setCatalogos(cRes.data);
+        } catch {
+            message.error('Error en la operación');
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    // Columnas
+    const columns = [
+        { title: 'Código', dataIndex: 'codigo_tarea', key: 'codigo_tarea', width: 150 },
+        { title: 'Tarea', dataIndex: 'descripcion_tarea', key: 'tarea', width: 200 },
+        {
+            title: 'Plan Acción',
+            dataIndex: 'plan_accion_especifico',
+            key: 'plan',
+            width: 200,
+            render: text => <div>{text}</div>,
+        },
+        {
+            title: 'Fundamentos',
+            dataIndex: 'fundamentos_y_soporte',
+            key: 'fund',
+            width: 200,
+            render: text => <div>{text}</div>,
+        },
+        {
+            title: 'Estándar',
+            dataIndex: 'id_estandar',
+            key: 'estandar',
+            width: 150,
+            render: id =>
+                catalogos.estandares?.find(e => e.id_estandar === id)?.estandar || id,
+        },
+        {
+            title: 'Categoría',
+            dataIndex: 'id_categoria_estandar',
+            key: 'categoria',
+            width: 150,
+            render: id =>
+                catalogos.categorias?.find(c => c.id_categoria_estandar === id)
+                    ?.categoria_estandar || id,
+        },
+        {
+            title: 'PHVA',
+            dataIndex: 'id_phva',
+            key: 'phva',
+            width: 120,
+            render: id =>
+                catalogos.phva?.find(p => p.id_phva === id)?.ciclo || id,
+        },
+        {
+            title: 'Metas',
+            dataIndex: 'id_metas_estandar',
+            key: 'metas',
+            width: 180,
+            render: id =>
+                catalogos.metas?.find(m => m.id_metas_estandar === id)?.metas || id,
+        },
+        {
+            title: 'Recurso',
+            dataIndex: 'id_recurso_administrativo',
+            key: 'recurso',
+            width: 150,
+            render: id =>
+                catalogos.recursos?.find(r => r.id_recurso_administrativo === id)
+                    ?.tipo_recurso || id,
+        },
+        {
+            title: 'Responsable',
+            dataIndex: 'id_responsable_actividad',
+            key: 'responsable',
+            width: 150,
+            render: id =>
+                catalogos.responsables?.find(r => r.id_responsable_actividad === id)
+                    ?.responsable || id,
+        },
+        {
+            title: 'Proceso',
+            dataIndex: 'id_proceso',
+            key: 'proceso',
+            width: 200,
+            render: id => {
+                const p = catalogos.procesos?.find(p => p.id_proceso === id);
+                return p ? `${p.codigo_proceso} – ${p.proceso}` : id;
+            },
+        },
+        {
+            title: 'Req 1072',
+            dataIndex: 'id_requisito_1072',
+            key: 'req1072',
+            width: 120,
+            render: id =>
+                catalogos.requisito1072?.find(r => r.id_requisito_1072 === id)
+                    ?.requisito_1072 || id,
+        },
+        {
+            title: 'Req 4501',
+            dataIndex: 'id_requisito_4501',
+            key: 'req4501',
+            width: 120,
+            render: id =>
+                catalogos.requisito4501?.find(r => r.id_requisito_4501 === id)
+                    ?.requisito_4501 || id,
+        },
+        { title: '7 Estándares', dataIndex: '7_estandares', key: 's7', width: 100 },
+        { title: '21 Estándares', dataIndex: '21_estandares', key: 's21', width: 100 },
+        { title: '60 Estándares', dataIndex: '60_estandares', key: 's60', width: 120 },
+        {
+            title: 'Acciones',
+            key: 'acciones',
+            fixed: 'right',
+            width: 100,
+            render: (_, record) => (
+                <Space>
+                    <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(record)} />
+                    <Button icon={<DeleteOutlined />} size="small" danger onClick={() => handleDelete(record)} />
+                </Space>
+            ),
+        },
     ];
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header con buscador y botón Nuevo */}
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <h2 className="text-3xl font-extrabold text-gray-800">Gestión de Tareas</h2>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search
-                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            size={16}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Buscar tarea..."
-                            value={searchTerm}
-                            onChange={handleSearch}
-                            className="pl-10 pr-3 py-2 border rounded-lg w-full focus:outline-none focus:ring focus:border-blue-300 text-sm sm:text-base"
-                        />
-                    </div>
-                    <button
-                        onClick={handleAdd}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-lg shadow hover:from-blue-600 hover:to-indigo-600 transition flex items-center gap-1 text-sm"
+        <ConfigProvider
+            theme={{
+                algorithm: theme.darkAlgorithm,
+                token: {
+                    colorPrimary: '#1f2937',
+                    colorBgContainer: '#1f2937',
+                    colorText: '#ffffff',
+                    controlItemBgActive: '#374151',
+                    controlItemBgHover: '#4b5563',
+                },
+            }}
+        >
+            <>
+                <style>{styleOverrides}</style>
+                <div className="p-6 space-y-6 min-h-full">
+                    {/* Header */}
+                    <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                        <Col xs={24} sm={8}>
+                            <h2 className="text-3xl font-bold text-white">Gestión de Tareas</h2>
+                        </Col>
+                        <Col xs={24} sm={10}>
+                            <Input
+                                prefix={<SearchOutlined />}
+                                placeholder="Buscar tarea..."
+                                value={searchText}
+                                onChange={e => setSearchText(e.target.value)}
+                                allowClear
+                            />
+                        </Col>
+                        <Col xs={24} sm={6} className="text-center sm:text-right">
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openNew}>
+                                Nuevo
+                            </Button>
+                        </Col>
+                    </Row>
+
+                    {/* Inyecta estos estilos */}
+                    <style>{`
+    .ant-pagination-item {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+    .ant-pagination-item a {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-item-active {
+      background-color: #4b5563 !important;
+      border-color: #4b5563 !important;
+    }
+    .ant-pagination-item-active a {
+      color: #fff !important;
+    }
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-disabled .ant-pagination-item-link {
+      color: #6b7280 !important;
+    }
+  `}</style>
+                    {/* Tabla */}
+                    <Table
+                        columns={columns}
+                        dataSource={filtered}
+                        loading={loading}
+                        rowKey="id_tarea"
+                        pagination={{ pageSize: 10 }}
+                        scroll={{ x: 'max-content', y: '60vh' }}
+                        bordered
+                        tableLayout="fixed"
+                    />
+
+                    {/* Drawer para crear/editar */}
+                    <Drawer
+                        title={
+                            <Space>
+                                {isEditing ? <EditOutlined /> : <PlusOutlined />}
+                                {isEditing ? 'Editar Tarea' : 'Nueva Tarea'}
+                            </Space>
+                        }
+                        placement="right"
+                        width={window.innerWidth < 768 ? '100%' : 700}
+                        open={drawerVisible}
+                        onClose={() => setDrawerVisible(false)}
+                        headerStyle={{
+                            background: 'linear-gradient(90deg,#4b5563,#1f2937)',
+                            color: '#fff',
+                        }}
+                        bodyStyle={{
+                            background: '#111827',
+                            padding: 24,
+                            overflowY: 'auto',
+                            height: 'calc(100% - 108px)',
+                        }}
+                        footer={
+                            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                                <Button onClick={() => setDrawerVisible(false)}>Cancelar</Button>
+                                <Button type="primary" loading={confirmLoading} onClick={handleOk}>
+                                    {isEditing ? 'Actualizar' : 'Guardar'}
+                                </Button>
+                            </Space>
+                        }
                     >
-                        <Plus size={16} /> Nuevo
-                    </button>
+                        <Steps
+                            current={0}
+                            size="small"
+                            style={{ marginBottom: 24, color: '#fff' }}
+                            items={[{ title: 'Básicos' }, { title: 'Catálogos' }, { title: 'Confirmar' }]}
+                        />
+
+                        <Form form={form} layout="vertical">
+                            <Row gutter={[16, 16]}>
+                                <Col xs={24} sm={24}>
+                                    <Form.Item name="codigo_tarea" label="Código Tarea" rules={[{ required: true }]}>
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12}>
+                                    <Form.Item name="tarea" label="Tarea" rules={[{ required: true }]}>
+                                        <Input />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24}>
+                                    <Form.Item name="plan_accion_especifico" label="Plan Acción Específico">
+                                        <Input.TextArea rows={3} />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24}>
+                                    <Form.Item name="fundamentos_y_soporte" label="Fundamentos y Soporte">
+                                        <Input.TextArea rows={3} />
+                                    </Form.Item>
+                                </Col>
+                                {[
+                                    { name: 'id_estandar', label: 'Estándar', data: 'estandares', labelKey: 'estandar' },
+                                    {
+                                        name: 'id_categoria_estandar',
+                                        label: 'Categoría Estándar',
+                                        data: 'categorias',
+                                        labelKey: 'categoria_estandar',
+                                    },
+                                    { name: 'id_phva', label: 'PHVA', data: 'phva', labelKey: 'ciclo' },
+                                    { name: 'id_metas_estandar', label: 'Metas', data: 'metas', labelKey: 'metas' },
+                                    {
+                                        name: 'id_recurso_administrativo',
+                                        label: 'Recurso',
+                                        data: 'recursos',
+                                        labelKey: 'tipo_recurso',
+                                    },
+                                    {
+                                        name: 'id_responsable_actividad',
+                                        label: 'Responsable',
+                                        data: 'responsables',
+                                        labelKey: 'responsable',
+                                    },
+                                    { name: 'id_proceso', label: 'Proceso', data: 'procesos', labelKey: ['codigo_proceso', 'proceso'] },
+                                    {
+                                        name: 'id_requisito_1072',
+                                        label: 'Requisito 1072',
+                                        data: 'requisito1072',
+                                        labelKey: 'requisito_1072',
+                                    },
+                                    {
+                                        name: 'id_requisito_4501',
+                                        label: 'Requisito 4501',
+                                        data: 'requisito4501',
+                                        labelKey: 'requisito_4501',
+                                    },
+                                ].map(cfg => (
+                                    <Col xs={24} sm={12} key={cfg.name}>
+                                        <Form.Item name={cfg.name} label={cfg.label}>
+                                            <Select allowClear>
+                                                {catalogos[cfg.data]?.map(opt => {
+                                                    const label = Array.isArray(cfg.labelKey)
+                                                        ? `${opt[cfg.labelKey[0]]} – ${opt[cfg.labelKey[1]]}`
+                                                        : opt[cfg.labelKey];
+                                                    const value = opt[cfg.name];
+                                                    return (
+                                                        <Option key={value} value={value}>
+                                                            {label}
+                                                        </Option>
+                                                    );
+                                                })}
+                                            </Select>
+                                        </Form.Item>
+                                    </Col>
+                                ))}
+                                {['7_estandares', '21_estandares', '60_estandares'].map(n => (
+                                    <Col xs={24} sm={8} key={n}>
+                                        <Form.Item name={n} label={prettify(n)}>
+                                            <Select options={booleanOptions} allowClear />
+                                        </Form.Item>
+                                    </Col>
+                                ))}
+                            </Row>
+                        </Form>
+                    </Drawer>
                 </div>
-            </div>
-
-            {/* Tabla de tareas */}
-            <div className="overflow-x-auto bg-white shadow rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {[
-                                'Código', 'Tarea', 'Plan Acción', 'Fundamentos',
-                                'Estándar', 'Categoría', 'PHVA', 'Metas',
-                                'Recurso', 'Responsable', 'Proceso',
-                                'Req 1072', 'Req 4501', '7 Estándares',
-                                '21 Estándares', '60 Estándares', 'Acciones'
-                            ].map(header => (
-                                <th
-                                    key={header}
-                                    className="px-4 py-2 text-left uppercase font-medium text-gray-600"
-                                >
-                                    {header}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tareasFiltradas.map((t, i) => (
-                            <tr key={t.id_tarea} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-4 py-2">{t.codigo_tarea}</td>
-                                <td className="px-4 py-2">{t.descripcion_tarea}</td>
-                                <td className="px-4 py-2">{t.plan_accion_especifico}</td>
-                                <td className="px-4 py-2">{t.fundamentos_y_soporte}</td>
-                                <td className="px-4 py-2">{getEstandar(t.id_estandar)}</td>
-                                <td className="px-4 py-2">{getCategoria(t.id_categoria_estandar)}</td>
-                                <td className="px-4 py-2">{getPHVA(t.id_phva)}</td>
-                                <td className="px-4 py-2">{getMetas(t.id_metas_estandar)}</td>
-                                <td className="px-4 py-2">{getRecurso(t.id_recurso_administrativo)}</td>
-                                <td className="px-4 py-2">{getResponsable(t.id_responsable_actividad)}</td>
-                                <td className="px-4 py-2">{getProceso(t.id_proceso)}</td>
-                                <td className="px-4 py-2">{getReq1072(t.id_requisito_1072)}</td>
-                                <td className="px-4 py-2">{getReq4501(t.id_requisito_4501)}</td>
-                                <td className="px-4 py-2">{t['7_estandares']}</td>
-                                <td className="px-4 py-2">{t['21_estandares']}</td>
-                                <td className="px-4 py-2">{t['60_estandares']}</td>
-                                <td className="px-4 py-2">
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleEdit(t)}
-                                            className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 shadow-md"
-                                        >
-                                            <Pencil size={16} /> Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(t)}
-                                            className="flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-200 shadow-md"
-                                        >
-                                            <Trash2 size={16} /> Eliminar
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Modal de Formulario */}
-            {showTable && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-auto">
-                        <h3 className="text-xl font-semibold mb-4">
-                            {editar ? 'Editar Tarea' : 'Crear Tarea'}
-                        </h3>
-                        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Field label="Código" name="codigo_tarea" value={formulario.codigo_tarea} onChange={handleInputChange} />
-                            <Field label="Tarea" name="tarea" value={formulario.tarea} onChange={handleInputChange} />
-                            <Textarea label="Plan de Acción" name="plan_accion_especifico" value={formulario.plan_accion_especifico} onChange={handleInputChange} />
-                            <Textarea label="Fundamentos" name="fundamentos_y_soporte" value={formulario.fundamentos_y_soporte} onChange={handleInputChange} />
-                            <Select
-                                label="Estándar"
-                                name="id_estandar"
-                                value={formulario.id_estandar}
-                                options={catalogos.estandares.map(e => ({ value: e.id_estandar, label: e.estandar }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Categoría"
-                                name="id_categoria_estandar"
-                                value={formulario.id_categoria_estandar}
-                                options={catalogos.categorias.map(c => ({ value: c.id_categoria_estandar, label: c.categoria_estandar }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Ciclo PHVA"
-                                name="id_phva"
-                                value={formulario.id_phva}
-                                options={catalogos.phva.map(p => ({ value: p.id_phva, label: p.ciclo }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Metas"
-                                name="id_metas_estandar"
-                                value={formulario.id_metas_estandar}
-                                options={catalogos.metas.map(m => ({ value: m.id_metas_estandar, label: m.metas }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Recurso"
-                                name="id_recurso_administrativo"
-                                value={formulario.id_recurso_administrativo}
-                                options={catalogos.recursos.map(r => ({ value: r.id_recurso_administrativo, label: r.tipo_recurso }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Responsable"
-                                name="id_responsable_actividad"
-                                value={formulario.id_responsable_actividad}
-                                options={catalogos.responsables.map(r => ({ value: r.id_responsable_actividad, label: r.responsable }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Proceso"
-                                name="id_proceso"
-                                value={formulario.id_proceso}
-                                options={catalogos.procesos.map(p => ({ value: p.id_proceso, label: `${p.codigo_proceso} – ${p.proceso}` }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Req 1072"
-                                name="id_requisito_1072"
-                                value={formulario.id_requisito_1072}
-                                options={catalogos.requisito1072.map(r => ({ value: r.id_requisito_1072, label: r.requisito_1072 }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="Req 4501"
-                                name="id_requisito_4501"
-                                value={formulario.id_requisito_4501}
-                                options={catalogos.requisito4501.map(r => ({ value: r.id_requisito_4501, label: r.requisito_4501 }))}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="7 Estándares"
-                                name="7_estandares"
-                                value={formulario['7_estandares']}
-                                options={booleanOptions}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="21 Estándares"
-                                name="21_estandares"
-                                value={formulario['21_estandares']}
-                                options={booleanOptions}
-                                onChange={handleInputChange}
-                            />
-                            <Select
-                                label="60 Estándares"
-                                name="60_estandares"
-                                value={formulario['60_estandares']}
-                                options={booleanOptions}
-                                onChange={handleInputChange}
-                            />
-
-                            <div className="col-span-full flex justify-end space-x-3 mt-4">
-                                <button
-                                    type="submit"
-                                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-                                >
-                                    {editar ? 'Actualizar' : 'Guardar'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleClose}
-                                    className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
+            </>
+        </ConfigProvider>
     );
 }
+

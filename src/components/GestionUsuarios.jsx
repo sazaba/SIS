@@ -1,180 +1,367 @@
-import React, { useContext, useEffect, useState } from 'react'
-import 'bootstrap/dist/css/bootstrap.min.css';
-import Swal from 'sweetalert2'
-import withReactContent from 'sweetalert2-react-content'
-import { Search } from 'lucide-react'
-const MySwal = withReactContent(Swal)
+import React, { useContext, useEffect, useState } from 'react';
+import {
+    Table,
+    Drawer,
+    Steps,
+    Form,
+    Input,
+    Select,
+    Button,
+    Row,
+    Col,
+    Space,
+    ConfigProvider,
+    theme,
+    message,
+} from 'antd';
+import {
+    SearchOutlined,
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+} from '@ant-design/icons';
 import userApi from '../api/services/userApi';
 import MyContext from '../context/Mycontext';
-import { Pencil, Trash2 } from 'lucide-react';
 
+const { Option } = Select;
 
-function GestionUsuarios() {
-    const { actualizarUserInfo } = useContext(MyContext)
+// helper para convertir claves en títulos bonitos
+const prettify = (key) =>
+    key
+        .split('_')
+        .map((word) =>
+            word.toLowerCase() === 'sst'
+                ? 'SST'
+                : word[0].toUpperCase() + word.slice(1).toLowerCase()
+        )
+        .join(' ');
 
-    // Campos a mostrar
-    const fields = [
-        'cedula', 'nombre', 'apellido', 'telefono', 'email', 'direccion',
-        'licencia', 'profesion', 'perfil', 'formacion', 'especialidad',
-        'titulo', 'competencia_tecnica', 'curso_sst', 'activo_inactivo', 'contraseña'
-    ];
-    const empty = Object.fromEntries(fields.map(f => [f, '']));
-
-    const [form, setForm] = useState(empty);
-    const [contraseña, setContraseña] = useState('');
+export default function GestionUsuarios() {
+    const { actualizarUserInfo } = useContext(MyContext);
     const [usuarios, setUsuarios] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filtered, setFiltered] = useState([]);
-    const [editar, setEditar] = useState(false);
-    const [showTable, setShowTable] = useState(false);
-    const [submitAttempted, setSubmitAttempted] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+    const [searchText, setSearchText] = useState('');
+    const [filteredData, setFilteredData] = useState([]);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentRecord, setCurrentRecord] = useState(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
 
-    // Fetch
-    useEffect(() => { fetchUsers() }, []);
+    const [form] = Form.useForm();
+    const fields = [
+        'cedula',
+        'nombre',
+        'apellido',
+        'telefono',
+        'email',
+        'direccion',
+        'licencia',
+        'profesion',
+        'perfil',
+        'formacion',
+        'especialidad',
+        'titulo',
+        'competencia_tecnica',
+        'curso_sst',
+        'activo_inactivo',
+    ];
+
     useEffect(() => {
-        const term = searchTerm.toLowerCase();
-        setFiltered(usuarios.filter(u =>
-            fields.some(f => String(u[f]).toLowerCase().includes(term))
-        ));
-    }, [searchTerm, usuarios]);
+        fetchUsers();
+    }, []);
 
-    const fetchUsers = () => userApi.getUsers()
-        .then(r => { setUsuarios(r.data); actualizarUserInfo(r.data) })
-        .catch(console.error);
+    useEffect(() => {
+        const term = searchText.toLowerCase();
+        setFilteredData(
+            usuarios.filter((u) =>
+                fields.some((f) =>
+                    String(u[f]).toLowerCase().includes(term)
+                )
+            )
+        );
+    }, [searchText, usuarios]);
 
-    const handleAdd = () => { setForm(empty); setContraseña(''); setEditar(false); setShowTable(true); };
-    const handleClose = () => setShowTable(false);
-
-    const handleSubmit = () => {
-        setSubmitAttempted(true);
-        const miss = fields.filter(f => !form[f]);
-        if (!editar && !contraseña) miss.push('contraseña');
-        if (miss.length) return MySwal.fire('Error', 'Completa: ' + miss.join(', '), 'error');
-
-        const payload = { ...form };
-        if (!editar || contraseña) payload.contraseña = contraseña;
-        const action = editar ? userApi.updateUser(form.cedula, payload) : userApi.createUser(payload);
-        action.then(() => {
-            MySwal.fire('👍', editar ? 'Actualizado' : 'Creado', 'success');
-            fetchUsers(); setForm(empty); setContraseña(''); setShowTable(false);
-        }).catch(() => MySwal.fire('Error', 'Intenta de nuevo', 'error'));
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const { data } = await userApi.getUsers();
+            setUsuarios(data);
+            setFilteredData(data);
+            actualizarUserInfo(data);
+        } catch (err) {
+            message.error('Error cargando usuarios');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleEdit = u => { setForm(u); setContraseña(''); setEditar(true); setShowTable(true); };
-    const handleDelete = c => userApi.deleteUser(c)
-        .then(() => { MySwal.fire('Eliminado', '👍', 'success'); fetchUsers() })
-        .catch(() => MySwal.fire('Error', 'No borró', 'error'));
+    const openNewModal = () => {
+        form.resetFields();
+        form.setFieldsValue({});
+        setIsEditing(false);
+        setCurrentRecord(null);
+        setIsModalVisible(true);
+    };
+    const openEditModal = (record) => {
+        form.setFieldsValue(record);
+        setIsEditing(true);
+        setCurrentRecord(record);
+        setIsModalVisible(true);
+    };
+
+    const handleDelete = async (cedula) => {
+        setDeletingId(cedula);
+        try {
+            await userApi.deleteUser(cedula);
+            message.success('Usuario eliminado');
+        } catch (err) {
+            console.error('Delete error:', err);
+            if (err.errno === 1451) {
+                message.error(
+                    'No se puede eliminar: este usuario está asociado a una empresa. ' +
+                    'Desasócialo antes de eliminarlo.'
+                );
+            } else {
+                message.error('Error al eliminar');
+            }
+        } finally {
+            await fetchUsers();
+            setDeletingId(null);
+        }
+    };
+
+    const handleOk = async () => {
+        try {
+            const values = await form.validateFields();
+            setConfirmLoading(true);
+            if (!isEditing && !values.contraseña) {
+                message.error('Debes ingresar contraseña');
+                setConfirmLoading(false);
+                return;
+            }
+            const payload = { ...values };
+            if (isEditing && !values.contraseña) {
+                delete payload.contraseña;
+            }
+            if (isEditing) {
+                await userApi.updateUser(currentRecord.cedula, payload);
+                message.success('Usuario actualizado');
+            } else {
+                await userApi.createUser(payload);
+                message.success('Usuario creado');
+            }
+            setIsModalVisible(false);
+            fetchUsers();
+        } catch (err) {
+            console.error(err);
+            message.error('Error en la operación');
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const columns = [
+        ...fields.map((key) => ({
+            title: prettify(key),
+            dataIndex: key,
+            key,
+            width: 150,
+            sorter: (a, b) =>
+                String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true }),
+        })),
+        {
+            title: 'Acciones',
+            key: 'acciones',
+            align: 'center',
+            fixed: 'right',
+            width: 100,
+            render: (_, record) => (
+                <Space size="middle">
+                    <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => openEditModal(record)}
+                    />
+                    <Button
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        danger
+                        loading={deletingId === record.cedula}
+                        onClick={() => handleDelete(record.cedula)}
+                    />
+                </Space>
+            ),
+        },
+    ];
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header y búsqueda */}
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <h2 className="text-3xl font-extrabold text-gray-800">Gestión de Usuarios</h2>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Buscar..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-3 py-2 border rounded-lg w-full focus:outline-none focus:ring focus:border-blue-300"
+        <ConfigProvider
+            theme={{
+                algorithm: theme.darkAlgorithm,
+                token: {
+                    colorPrimary: '#1f2937',
+                    colorBgContainer: '#1f2937',
+                    colorText: '#ffffff',
+                    controlItemBgActive: '#374151',
+                    controlItemBgHover: '#4b5563',
+                },
+            }}
+        >
+            <div className="p-6 space-y-6 min-h-full">
+                {/* Encabezado */}
+                <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                    <Col xs={24} sm={8}>
+                        <h2 className="text-3xl font-bold text-white text-center sm:text-left">
+                            Gestión de Usuarios
+                        </h2>
+                    </Col>
+                    <Col xs={24} sm={10}>
+                        <Input
+                            prefix={<SearchOutlined />}
+                            placeholder="Buscar usuarios..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            allowClear
                         />
-                    </div>
-                    <button onClick={handleAdd} className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-lg shadow hover:from-blue-600 hover:to-indigo-600 transition">
-                        + Nuevo
-                    </button>
-                </div>
-            </div>
+                    </Col>
+                    <Col xs={24} sm={6} className="text-center sm:text-right">
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={openNewModal}
+                        >
+                            Nuevo
+                        </Button>
+                    </Col>
+                </Row>
+                <style>{`
+    .ant-pagination-item {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+    .ant-pagination-item a {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-item-active {
+      background-color: #4b5563 !important;
+      border-color: #4b5563 !important;
+    }
+    .ant-pagination-item-active a {
+      color: #fff !important;
+    }
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-disabled .ant-pagination-item-link {
+      color: #6b7280 !important;
+    }
+  `}</style>
+                {/* Tabla con scroll */}
+                <Table
+                    columns={columns}
+                    dataSource={filteredData}
+                    loading={loading}
+                    rowKey="cedula"
+                    pagination={{ pageSize: 10 }}
+                    bordered
+                    scroll={{ x: 'max-content', y: '60vh' }}
+                />
 
-            {/* Modal de formulario */}
-            {showTable && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-auto transform transition-transform duration-300 scale-100">
-                        <h3 className="text-xl font-semibold mb-4">{editar ? 'Editar Usuario' : 'Crear Usuario'}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {fields.map(f => (
-                                <div key={f} className="flex flex-col">
-                                    <label className="mb-1 text-gray-700 capitalize">{f.replace('_', ' ')}</label>
-                                    <input
-                                        className="border rounded-lg p-2 focus:outline-none focus:ring"
-                                        value={form[f]}
-                                        onChange={e => setForm(s => ({ ...s, [f]: e.target.value }))}
-                                    />
-                                </div>
-                            ))}
-                            {!editar && (
-                                <div className="flex flex-col">
-                                    <label className="mb-1 text-gray-700">Contraseña</label>
-                                    <input
-                                        type="password"
-                                        className="border rounded-lg p-2 focus:outline-none focus:ring"
-                                        value={contraseña}
-                                        onChange={e => setContraseña(e.target.value)}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex justify-end mt-6 space-x-3">
-                            <button onClick={handleSubmit} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                                {editar ? 'Actualizar' : 'Guardar'}
-                            </button>
-                            <button onClick={handleClose} className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                {/* Drawer para crear/editar */}
+                <Drawer
+                    title={
+                        <Space align="center">
+                            {isEditing ? <EditOutlined /> : <PlusOutlined />}
+                            <span className="text-lg font-semibold">
+                                {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
+                            </span>
+                        </Space>
+                    }
+                    placement="right"
+                    width={window.innerWidth < 768 ? '100%' : 600}
+                    open={isModalVisible}
+                    onClose={() => setIsModalVisible(false)}
+                    headerStyle={{
+                        background: 'linear-gradient(90deg, #4b5563, #1f2937)',
+                        color: '#fff',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    }}
+                    bodyStyle={{
+                        background: '#111827',
+                        padding: 24,
+                        overflowY: 'auto',
+                        height: 'calc(100% - 108px)',
+                    }}
+                    footer={
+                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                            <Button onClick={() => setIsModalVisible(false)}>
                                 Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            </Button>
+                            <Button
+                                type="primary"
+                                loading={confirmLoading}
+                                onClick={handleOk}
+                            >
+                                {isEditing ? 'Actualizar' : 'Guardar'}
+                            </Button>
+                        </Space>
+                    }
+                >
+                    <Steps
+                        current={0}
+                        size="small"
+                        style={{ marginBottom: 24, color: '#fff' }}
+                        items={[
+                            { title: 'Datos Básicos' },
+                            { title: 'Perfil' },
+                            { title: 'Confirmación' },
+                        ]}
+                    />
 
-            {/* Tabla */}
-            <div className="overflow-x-auto bg-white shadow rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {fields.map(f => (
-                                <th key={f} className="px-4 py-2 text-left text-sm font-medium text-gray-600 uppercase">
-                                    {f.replace('_', ' ')}
-                                </th>
+                    <Form form={form} layout="vertical">
+                        <Row gutter={[16, 16]}>
+                            {[...fields, ...(!isEditing ? ['contraseña'] : [])].map((field) => (
+                                <Col xs={24} sm={12} key={field}>
+                                    <Form.Item
+                                        name={field}
+                                        label={<span className="text-gray-200">{prettify(field)}</span>}
+                                        rules={[
+                                            {
+                                                required: !isEditing || field !== 'contraseña',
+                                                message: 'Requerido',
+                                            },
+                                        ]}
+                                    >
+                                        {field === 'perfil' ? (
+                                            <Select>
+                                                <Option value="administrador">Administrador</Option>
+                                                <Option value="prestador">Prestador</Option>
+                                            </Select>
+                                        ) : field === 'activo_inactivo' ? (
+                                            <Select>
+                                                <Option value="activo">Activo</Option>
+                                                <Option value="inactivo">Inactivo</Option>
+                                            </Select>
+                                        ) : (
+                                            <Input
+                                                type={field === 'contraseña' ? 'password' : 'text'}
+                                                style={{
+                                                    background: '#1f2937',
+                                                    borderColor: '#374151',
+                                                    color: '#fff',
+                                                }}
+                                            />
+                                        )}
+                                    </Form.Item>
+                                </Col>
                             ))}
-                            <th className="px-4 py-2">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filtered.map((u, i) => (
-                            <tr key={u.cedula} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                {fields.map(f => (
-                                    <td key={f} className="px-4 py-2 text-sm text-gray-700">
-                                        {u[f]}
-                                    </td>
-                                ))}
-                                <td className="px-4 py-2">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <button
-                                            onClick={() => handleEdit(u)}
-                                            className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 shadow-md"
-                                        >
-                                            <Pencil size={16} />
-                                            Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(u.cedula)}
-                                            className="flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-200 shadow-md"
-                                        >
-                                            <Trash2 size={16} />
-                                            Eliminar
-                                        </button>
-                                    </div>
-                                </td>
-
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </Row>
+                    </Form>
+                </Drawer>
             </div>
-        </div>
-    )
+        </ConfigProvider>
+    );
 }
-
-export default GestionUsuarios;
-

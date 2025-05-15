@@ -1,103 +1,100 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { ConfigProvider, Card, Form, Input, Button, Typography, Alert, Spin, theme } from 'antd';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import userApi from '../api/services/userApi';
 import MyContext from '../context/Mycontext';
-import LoadingComponent from './LoadingComponent';
+
+const { Title, Text } = Typography;
+const { darkAlgorithm } = theme;
 
 const LoginForm = () => {
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const { actualizarNombreDB, actualizarPerfilDB, actualizarToken, token } = useContext(MyContext);
-    const [invalidCredentials, setInvalidCredentials] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const { actualizarNombreDB, actualizarPerfilDB, actualizarToken } = useContext(MyContext);
 
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setIsLoading(true); // Activamos loading al comenzar
+    const onFinish = async ({ email, password }) => {
+        setLoading(true);
+        setError(null);
         try {
-            const response = await userApi.login({
-                email: email,
-                contraseña: password,
-            });
+            const response = await userApi.login({ email, contraseña: password });
             const { token, nombre, perfil } = response.data;
 
-            // Almacena el token en el estado local del componente
             actualizarToken(token);
-
-            // Almacena el token en el localStorage para persistir la sesión
             localStorage.setItem('token', token);
-            console.log(localStorage)
-
-            // Actualizar el nombre de la base de datos utilizando el contexto
             actualizarNombreDB(nombre);
             actualizarPerfilDB(perfil);
-
-            // Redirigir a la página principal o a donde sea necesario
             navigate('/profile-page');
-
-        } catch (error) {
-            console.error('Error al iniciar sesión:', error.response ? error.response.data : error.message);
-            setInvalidCredentials(error.response?.data?.message || 'Credenciales inválidas');
+        } catch (err) {
+            const message = err.response?.data?.message || 'Error al iniciar sesión';
+            setError(message);
         } finally {
-            setIsLoading(false); // Se desactiva loading pase lo que pase
+            setLoading(false);
         }
     };
 
-    if (isLoading) {
-        return <LoadingComponent />;
-    }
-
     return (
-        <div className="container mt-5">
-            <div className="row justify-content-center">
-                <div className="col-md-6">
-                    <div className="card">
-                        <div className="card-header text-center font-bold">Inicio de Sesión</div>
-                        <div className="card-body">
-                            <form onSubmit={(e) => handleLogin(e)}>
-                                <div className="mb-3">
-                                    <label htmlFor="email" className="form-label">
-                                        Correo Electrónico
-                                    </label>
-                                    <input
-                                        type="email"
-                                        className="form-control"
-                                        id="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        autoComplete="current-username"
-                                    />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="password" className="form-label">
-                                        Contraseña
-                                    </label>
-                                    <input
-                                        type="password"
-                                        className="form-control"
-                                        id="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        autoComplete="current-password"
-                                    />
-                                    {invalidCredentials && (
-                                        <div className="text-red-700 font-sm text-sm">Credenciales inválidas</div>
-                                    )}
-                                </div>
-                                <button type="submit" className="btn btn-primary bg-blue-700">
-                                    Iniciar Sesión
-                                </button>
-                            </form>
-                        </div>
+        <ConfigProvider theme={{ algorithm: darkAlgorithm }}>
+            <div className="flex items-start justify-center min-h-screen bg-gray-950 p-4 pt-20 sm:pt-32">
+                <Card className="w-full max-w-md rounded-2xl shadow-lg bg-gray-900 border border-gray-800">
+                    <div className="text-center mb-6">
+                        <Title level={2} className="!text-white">Iniciar Sesión</Title>
+                        <Text className="!text-gray-400">Accede a tu cuenta</Text>
                     </div>
-                </div>
+
+                    {error && <Alert message={error} type="error" showIcon className="mb-4" />}
+
+                    <Form name="login" initialValues={{ remember: true }} onFinish={onFinish} layout="vertical">
+                        <Form.Item
+                            name="email"
+                            label={<span className="text-gray-300">Correo Electrónico</span>}
+                            rules={[{ required: true, message: 'Por favor ingresa tu correo' }]}
+                        >
+                            <Input
+                                prefix={<MailOutlined className="text-gray-400" />}
+                                placeholder="tucorreo@ejemplo.com"
+                                autoComplete="username"
+                                className="bg-gray-800 text-white border border-gray-700 rounded-lg"
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="password"
+                            label={<span className="text-gray-300">Contraseña</span>}
+                            rules={[{ required: true, message: 'Por favor ingresa tu contraseña' }]}
+                        >
+                            <Input.Password
+                                prefix={<LockOutlined className="text-gray-400" />}
+                                placeholder="********"
+                                autoComplete="current-password"
+                                className="bg-gray-800 text-white border border-gray-700 rounded-lg"
+                            />
+                        </Form.Item>
+
+                        <Form.Item>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                block
+                                size="large"
+                                disabled={loading}
+                                className="bg-blue-600 hover:bg-blue-700 border-none rounded-lg"
+                            >
+                                {loading ? <Spin /> : 'Iniciar Sesión'}
+                            </Button>
+                        </Form.Item>
+
+                        <Form.Item className="text-center">
+                            <Text className="text-gray-500">
+                                ¿No tienes cuenta? <Link to="/register" className="text-blue-400 hover:underline">Regístrate</Link>
+                            </Text>
+                        </Form.Item>
+                    </Form>
+                </Card>
             </div>
-        </div>
+        </ConfigProvider>
     );
 };
 

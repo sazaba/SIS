@@ -1,226 +1,334 @@
-import React, { useEffect, useState } from 'react'
-import 'bootstrap/dist/css/bootstrap.min.css'
-import Swal from 'sweetalert2'
-import withReactContent from 'sweetalert2-react-content'
-import { Pencil, Trash2, Search, Plus } from 'lucide-react'
-import userApi from '../api/services/userApi'
+import React, { useContext, useEffect, useState } from 'react';
+import {
+    Table,
+    Drawer,
+    Steps,
+    Form,
+    Input,
+    Select,
+    Button,
+    Row,
+    Col,
+    Space,
+    ConfigProvider,
+    theme,
+    message,
+} from 'antd';
+import {
+    SearchOutlined,
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+} from '@ant-design/icons';
+import userApi from '../api/services/userApi';
+import MyContext from '../context/Mycontext';
 
-const MySwal = withReactContent(Swal)
+const { Option } = Select;
 
-function GestionEmpresas() {
-    const initialForm = {
-        nit: '',
-        nombre_empresa: '',
-        ciudad: '',
-        departamento: '',
-        direccion_principal: '',
-        telefono: '',
-        email: '',
-        representante_legal: '',
-        email_representante_legal: '',
-        contacto_sst: '',
-        email_contactosst: '',
-        fecha_inicio: '',
-        visitas_mensual: '',
-        visitas_emergencias: '',
-        cantidad_trabajadores: '',
-        clase_riesgo: '',
-        arl: '',
-        actividad_economica: '',
-        descripcion_actividad: '',
-        numero_sedes: ''
-    }
+// Helper para convertir claves en títulos bonitos
+const prettify = (key) =>
+    key
+        .split('_')
+        .map(word =>
+            word.toLowerCase() === 'sst'
+                ? 'SST'
+                : word[0].toUpperCase() + word.slice(1).toLowerCase()
+        )
+        .join(' ');
 
-    const [form, setForm] = useState(initialForm)
-    const [empresas, setEmpresas] = useState([])
-    const [showModal, setShowModal] = useState(false)
-    const [editar, setEditar] = useState(false)
-    const [submitAttempted, setSubmitAttempted] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('')
+export default function GestionEmpresas() {
+    const { actualizarUserInfo } = useContext(MyContext);
+    const [empresas, setEmpresas] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+    const [searchText, setSearchText] = useState('');
+    const [filteredData, setFilteredData] = useState([]);
+    const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentRecord, setCurrentRecord] = useState(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
 
-    useEffect(() => fetchEmpresas(), [])
+    const [form] = Form.useForm();
+    const fields = [
+        'nit',
+        'nombre_empresa',
+        'ciudad',
+        'departamento',
+        'direccion_principal',
+        'telefono',
+        'email',
+        'representante_legal',
+        'email_representante_legal',
+        'contacto_sst',
+        'email_contactosst',
+        'fecha_inicio',
+        'visitas_mensual',
+        'visitas_emergencias',
+        'cantidad_trabajadores',
+        'clase_riesgo',
+        'arl',
+        'actividad_economica',
+        'descripcion_actividad',
+        'numero_sedes',
+    ];
 
-    const fetchEmpresas = () => {
-        userApi.getEmpresas()
-            .then(res => {
-                setEmpresas(res.data)
-            })
-            .catch(console.error)
-    }
+    useEffect(() => { fetchEmpresas() }, []);
+    useEffect(() => {
+        const term = searchText.toLowerCase();
+        setFilteredData(
+            empresas.filter(e =>
+                fields.some(f =>
+                    String(e[f]).toLowerCase().includes(term)
+                )
+            )
+        );
+    }, [searchText, empresas]);
 
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value.toLowerCase())
-    }
-
-    const empresasFiltradas = empresas.filter(empresa =>
-        empresa.nit.toLowerCase().includes(searchTerm) ||
-        empresa.nombre_empresa.toLowerCase().includes(searchTerm)
-    )
-
-    const openNew = () => {
-        setForm(initialForm)
-        setEditar(false)
-        setSubmitAttempted(false)
-        setShowModal(true)
-    }
-
-    const openEdit = (e) => {
-        setForm({ ...e })
-        setEditar(true)
-        setSubmitAttempted(false)
-        setShowModal(true)
-    }
-
-    const closeModal = () => setShowModal(false)
-
-    const handleChange = (key, value) => {
-        setForm(f => ({ ...f, [key]: value }))
-    }
-
-    const handleSubmit = () => {
-        setSubmitAttempted(true)
-        const missing = []
-        if (!form.nit) missing.push('nit')
-        if (!form.nombre_empresa) missing.push('nombre_empresa')
-        if (missing.length) {
-            return MySwal.fire('Error', 'Completa: ' + missing.join(', '), 'error')
+    const fetchEmpresas = async () => {
+        setLoading(true);
+        try {
+            const { data } = await userApi.getEmpresas();
+            setEmpresas(data);
+            setFilteredData(data);
+            actualizarUserInfo(data);
+        } catch (err) {
+            message.error('Error cargando empresas');
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
+    };
 
-        const action = editar
-            ? userApi.updateEmpresa(form.nit, form)
-            : userApi.createEmpresa(form)
+    const openNewDrawer = () => {
+        form.resetFields();
+        setIsEditing(false);
+        setCurrentRecord(null);
+        setIsDrawerVisible(true);
+    };
+    const openEditDrawer = record => {
+        form.setFieldsValue(record);
+        setIsEditing(true);
+        setCurrentRecord(record);
+        setIsDrawerVisible(true);
+    };
 
-        action
-            .then(() => {
-                MySwal.fire('👍', editar ? 'Actualizado' : 'Creado', 'success')
-                fetchEmpresas()
-                closeModal()
-            })
-            .catch(() => MySwal.fire('Error', 'Intenta de nuevo', 'error'))
-    }
+    const handleDelete = async nit => {
+        setDeletingId(nit);
+        try {
+            await userApi.deleteEmpresa(nit);
+            message.success('Empresa eliminada');
+        } catch (err) {
+            console.error('Delete error:', err);
+            message.error('Error al eliminar empresa');
+        } finally {
+            await fetchEmpresas();
+            setDeletingId(null);
+        }
+    };
 
-    const handleDelete = (nit) => {
-        userApi.deleteEmpresa(nit)
-            .then(() => {
-                MySwal.fire('Eliminado', '👍', 'success')
-                fetchEmpresas()
-            })
-            .catch(() => MySwal.fire('Error', 'No borró', 'error'))
-    }
+    const handleOk = async () => {
+        try {
+            const values = await form.validateFields();
+            setConfirmLoading(true);
+            if (isEditing) {
+                await userApi.updateEmpresa(currentRecord.nit, values);
+                message.success('Empresa actualizada');
+            } else {
+                await userApi.createEmpresa(values);
+                message.success('Empresa creada');
+            }
+            setIsDrawerVisible(false);
+            fetchEmpresas();
+        } catch (err) {
+            console.error(err);
+            message.error('Error en la operación');
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const columns = [
+        ...fields.map(key => ({
+            title: prettify(key),
+            dataIndex: key,
+            key,
+            width: 150,
+            sorter: (a, b) =>
+                String(a[key]).localeCompare(String(b[key]), undefined, { numeric: true }),
+        })),
+        {
+            title: 'Acciones',
+            key: 'acciones',
+            align: 'center',
+            fixed: 'right',
+            width: 100,
+            render: (_, record) => (
+                <Space size="middle">
+                    <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => openEditDrawer(record)}
+                    />
+                    <Button
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        danger
+                        loading={deletingId === record.nit}
+                        onClick={() => handleDelete(record.nit)}
+                    />
+                </Space>
+            ),
+        },
+    ];
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <h2 className="text-3xl font-extrabold text-gray-800">Gestión de Empresas</h2>
-
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search
-                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            size={16}
-                        />
-                        <input
-                            type="text"
+        <ConfigProvider
+            theme={{
+                algorithm: theme.darkAlgorithm,
+                token: {
+                    colorPrimary: '#1f2937',
+                    colorBgContainer: '#1f2937',
+                    colorText: '#ffffff',
+                    controlItemBgActive: '#374151',
+                    controlItemBgHover: '#4b5563',
+                },
+            }}
+        >
+            <div className="p-6 space-y-6 min-h-full">
+                {/* Encabezado */}
+                <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                    <Col xs={24} sm={8}>
+                        <h2 className="text-3xl font-bold text-white text-center sm:text-left">
+                            Gestión de Empresas
+                        </h2>
+                    </Col>
+                    <Col xs={24} sm={10}>
+                        <Input
+                            prefix={<SearchOutlined />}
                             placeholder="Buscar empresas..."
-                            value={searchTerm}
-                            onChange={handleSearch}
-                            className="pl-10 pr-3 py-2 border rounded-lg w-full focus:outline-none focus:ring focus:border-blue-300 text-sm sm:text-base"
+                            value={searchText}
+                            onChange={e => setSearchText(e.target.value)}
+                            allowClear
                         />
-                    </div>
-                    <button
-                        onClick={openNew}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-lg shadow hover:from-blue-600 hover:to-indigo-600 transition flex items-center gap-1 text-sm"
-                    >
-                        <Plus size={16} /> Nuevo
-                    </button>
-                </div>
-            </div>
+                    </Col>
+                    <Col xs={24} sm={6} className="text-center sm:text-right">
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={openNewDrawer}
+                        >
+                            Nuevo
+                        </Button>
+                    </Col>
+                </Row>
+                <style>{`
+    .ant-pagination-item {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+    .ant-pagination-item a {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-item-active {
+      background-color: #4b5563 !important;
+      border-color: #4b5563 !important;
+    }
+    .ant-pagination-item-active a {
+      color: #fff !important;
+    }
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      color: #9ca3af !important;
+    }
+    .ant-pagination-disabled .ant-pagination-item-link {
+      color: #6b7280 !important;
+    }
+  `}</style>
+                {/* Tabla con scroll */}
+                <Table
+                    columns={columns}
+                    dataSource={filteredData}
+                    loading={loading}
+                    rowKey="nit"
+                    pagination={{ pageSize: 10 }}
+                    bordered
+                    scroll={{ x: 'max-content', y: '60vh' }}
+                />
 
-            {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-auto">
-                        <h3 className="text-xl font-semibold mb-4 text-center">
-                            {editar ? 'Editar Empresa' : 'Crear Empresa'}
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.keys(initialForm).map(key => (
-                                <div key={key} className="flex flex-col">
-                                    <label className="mb-1 text-gray-700 capitalize">
-                                        {key.replace('_', ' ')}
-                                    </label>
-                                    <input
-                                        type={
-                                            key === 'fecha_inicio'
-                                                ? 'date'
-                                                : key === 'numero_sedes'
-                                                    ? 'number'
-                                                    : 'text'
-                                        }
-                                        value={form[key]}
-                                        onChange={e => handleChange(key, e.target.value)}
-                                        className={`border rounded-lg p-2 focus:outline-none focus:ring focus:border-blue-300 w-full ${submitAttempted && !form[key] ? 'border-red-500' : ''}`}
-                                        placeholder={key.replace('_', ' ')}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex justify-end space-x-3 mt-6">
-                            <button
-                                onClick={handleSubmit}
-                                className={`px-4 py-2 rounded-lg text-white shadow ${editar ? 'bg-green-600 hover:bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
-                            >
-                                {editar ? 'Actualizar' : 'Registrar'}
-                            </button>
-                            <button
-                                onClick={closeModal}
-                                className="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded-lg"
-                            >
+                {/* Drawer para crear/editar */}
+                <Drawer
+                    title={
+                        <Space align="center">
+                            {isEditing ? <EditOutlined /> : <PlusOutlined />}
+                            <span className="text-lg font-semibold">
+                                {isEditing ? 'Editar Empresa' : 'Nueva Empresa'}
+                            </span>
+                        </Space>
+                    }
+                    placement="right"
+                    width={window.innerWidth < 768 ? '100%' : 600}
+                    open={isDrawerVisible}
+                    onClose={() => setIsDrawerVisible(false)}
+                    headerStyle={{
+                        background: 'linear-gradient(90deg, #4b5563, #1f2937)',
+                        color: '#fff',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    }}
+                    bodyStyle={{
+                        background: '#111827',
+                        padding: 24,
+                        overflowY: 'auto',
+                        height: 'calc(100% - 108px)',
+                    }}
+                    footer={
+                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                            <Button onClick={() => setIsDrawerVisible(false)}>
                                 Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            </Button>
+                            <Button
+                                type="primary"
+                                loading={confirmLoading}
+                                onClick={handleOk}
+                            >
+                                {isEditing ? 'Actualizar' : 'Guardar'}
+                            </Button>
+                        </Space>
+                    }
+                >
+                    <Steps
+                        current={0}
+                        size="small"
+                        style={{ marginBottom: 24, color: '#fff' }}
+                        items={[
+                            { title: 'Datos Básicos' },
+                            { title: 'Contacto' },
+                            { title: 'Configuración' },
+                        ]}
+                    />
 
-            <div className="overflow-x-auto bg-white shadow rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {Object.keys(initialForm).map(col => (
-                                <th key={col} className="px-4 py-2 text-left uppercase font-medium text-gray-600 text-sm">
-                                    {col.replace('_', ' ')}
-                                </th>
+                    <Form form={form} layout="vertical">
+                        <Row gutter={[16, 16]}>
+                            {[...fields].map(field => (
+                                <Col xs={24} sm={12} key={field}>
+                                    <Form.Item
+                                        name={field}
+                                        label={<span className="text-gray-200">{prettify(field)}</span>}
+                                        rules={[{ required: true, message: 'Requerido' }]}
+                                    >
+                                        {field === 'fecha_inicio' ? (
+                                            <Input type="date" style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        ) : field === 'numero_sedes' || field === 'visitas_mensual' || field === 'visitas_emergencias' || field === 'cantidad_trabajadores' ? (
+                                            <Input type="number" style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        ) : (
+                                            <Input style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        )}
+                                    </Form.Item>
+                                </Col>
                             ))}
-                            <th className="px-4 py-2">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {empresasFiltradas.map((e, i) => (
-                            <tr key={e.nit} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                {Object.keys(initialForm).map(field => (
-                                    <td key={field} className="px-4 py-2 text-sm text-gray-700">
-                                        {e[field]}
-                                    </td>
-                                ))}
-                                <td className="px-4 py-2">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <button onClick={() => openEdit(e)} className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition shadow-md">
-                                            <Pencil size={16} /> Editar
-                                        </button>
-                                        <button onClick={() => handleDelete(e.nit)} className="flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-md">
-                                            <Trash2 size={16} /> Eliminar
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </Row>
+                    </Form>
+                </Drawer>
             </div>
-        </div>
-    )
+        </ConfigProvider>
+    );
 }
-
-export default GestionEmpresas
