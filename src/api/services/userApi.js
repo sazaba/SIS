@@ -74,7 +74,10 @@ const api = {
         userApi.get('/gestion-prestador-tareas/historial', {
             params: { empresaId, tareaId }
         }),
+    deleteHistorialItem: (id) =>
+        userApi.delete(`/gestion-prestador-tareas/historial/${id}`),
 };
+
 
 
 export default api;
