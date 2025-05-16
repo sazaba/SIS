@@ -62,8 +62,8 @@ export default function GestionEmpresas() {
         'contacto_sst',
         'email_contactosst',
         'fecha_inicio',
-        'visitas_mensual',
-        'visitas_emergencias',
+        'visitas_sst_mes',
+        'visitas_emergencias_año',
         'cantidad_trabajadores',
         'clase_riesgo',
         'arl',
@@ -317,7 +317,7 @@ export default function GestionEmpresas() {
                                     >
                                         {field === 'fecha_inicio' ? (
                                             <Input type="date" style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                                        ) : field === 'numero_sedes' || field === 'visitas_mensual' || field === 'visitas_emergencias' || field === 'cantidad_trabajadores' ? (
+                                        ) : field === 'numero_sedes' || field === 'visitas_sst_mes' || field === 'visitas_emergencias_año' || field === 'cantidad_trabajadores' ? (
                                             <Input type="number" style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />
                                         ) : (
                                             <Input style={{ background: '#1f2937', borderColor: '#374151', color: '#fff' }} />

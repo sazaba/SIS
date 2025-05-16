@@ -21,9 +21,10 @@ import MyContext from '../context/Mycontext';
 const { Title } = Typography;
 const { Option } = Select;
 const { Search } = Input;
+const { RangePicker } = DatePicker;
 
 export default function GestionPrestadorTareas() {
-    const { perfilDB } = useContext(MyContext);
+    const { perfilDB, nombreDB } = useContext(MyContext);
     const { empresaId } = useParams();
     const navigate = useNavigate();
 
@@ -32,6 +33,10 @@ export default function GestionPrestadorTareas() {
     const [usuarios, setUsuarios] = useState([]);
     const [empresaNombre, setEmpresaNombre] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Filtros de fecha de ejecución
+    const [filterYear, setFilterYear] = useState(null);
+    const [filterRange, setFilterRange] = useState([null, null]);
 
     const [historialVisible, setHistorialVisible] = useState(false);
     const [historialData, setHistorialData] = useState([]);
@@ -99,18 +104,19 @@ export default function GestionPrestadorTareas() {
                     empresa_id: r.id_empresa,
                     tarea_id: r.id_tarea,
                     descripcion_tarea: r.descripcion_tarea,
-                    fecha_inicio: r.fecha_inicio ? moment(r.fecha_inicio) : null,
-                    fecha_fin: r.fecha_fin ? moment(r.fecha_fin) : null,
-                    fecha_ejecucion: r.fecha_ejecucion ? moment(r.fecha_ejecucion) : null,
+                    avance: r.avance ?? 0,
+                    fecha_reg_doc: r.fecha_reg_doc ? moment(r.fecha_reg_doc) : null,
+                    fecha_tarea: r.fecha_tarea ? moment(r.fecha_tarea) : null,
                     usuario_responsable: r.usuario_responsable,
                     observacion: r.observacion,
-                    avance: r.avance ?? 0,
+                    enlace: r.enlace,
+
                     exists: Boolean(
-                        r.fecha_inicio ||
-                        r.fecha_fin ||
-                        r.fecha_ejecucion ||
+                        r.fecha_reg_doc ||
+                        r.fecha_tarea ||
                         r.usuario_responsable ||
                         r.observacion ||
+                        r.enlace ||
                         r.avance !== null
                     ),
                 }));
@@ -145,12 +151,13 @@ export default function GestionPrestadorTareas() {
         const payload = {
             empresa_id: record.empresa_id,
             tarea_id: record.tarea_id,
-            fecha_inicio: record.fecha_inicio?.format('YYYY-MM-DD HH:mm:ss'),
-            fecha_fin: record.fecha_fin?.format('YYYY-MM-DD HH:mm:ss'),
-            fecha_ejecucion: record.fecha_ejecucion?.format('YYYY-MM-DD HH:mm:ss'),
+            avance: record.avance,
+            fecha_reg_doc: record.fecha_reg_doc?.format('YYYY-MM-DD'),
+            fecha_tarea: record.fecha_tarea?.format('YYYY-MM-DD'),
             usuario_responsable: record.usuario_responsable,
             observacion: record.observacion,
-            avance: record.avance,
+            enlace: record.enlace,
+
         };
         try {
             if (record.exists) {
@@ -172,7 +179,7 @@ export default function GestionPrestadorTareas() {
             await userApi.deleteGestionTarea(record.empresa_id, record.tarea_id);
             message.success('Gestión eliminada');
             setRows(rows.map(r => r.key === record.key
-                ? { ...r, fecha_inicio: null, fecha_fin: null, fecha_ejecucion: null, usuario_responsable: null, observacion: '', avance: 0, exists: false }
+                ? { ...r, fecha_reg_doc: null, fecha_tarea: null, usuario_responsable: null, observacion: '', enlace: '', avance: 0, exists: false }
                 : r
             ));
             setHistorialVisible(false);
@@ -183,27 +190,67 @@ export default function GestionPrestadorTareas() {
     };
 
     const historialColumns = [
-        { title: 'Fecha Registro', dataIndex: 'fecha_registro', key: 'fecha_registro', width: 180, render: t => moment(t).format('YYYY-MM-DD HH:mm:ss') },
-        { title: 'Inicio', dataIndex: 'fecha_inicio', key: 'fecha_inicio', width: 180, render: t => t ? moment(t).format('YYYY-MM-DD HH:mm:ss') : '-' },
-        { title: 'Fin', dataIndex: 'fecha_fin', key: 'fecha_fin', width: 180, render: t => t ? moment(t).format('YYYY-MM-DD HH:mm:ss') : '-' },
-        { title: 'Ejecutado', dataIndex: 'fecha_ejecucion', key: 'fecha_ejecucion', width: 180, render: t => t ? moment(t).format('YYYY-MM-DD HH:mm:ss') : '-' },
-        { title: 'Responsable', dataIndex: 'nombre_responsable', key: 'nombre_responsable', width: 150 },
-        { title: 'Avance', dataIndex: 'avance', key: 'avance', width: 100, render: a => { const opt = avanceOptions.find(o => o.value === a); return opt ? <Tag color={opt.color}>{opt.label.split(' - ')[1]}</Tag> : a; } },
-        { title: 'Observación', dataIndex: 'observacion', key: 'observacion', width: 200 },
+        {
+            title: 'Última Modificación',
+            dataIndex: 'ultima_modificacion',
+            key: 'ultima_modificacion',
+            width: 180,
+            render: t => moment(t).format('YYYY-MM-DD HH:mm'),
+        },
+        {
+            title: 'Fecha Registro Documento',
+            dataIndex: 'fecha_reg_doc',
+            key: 'fecha_reg_doc',
+            width: 180,
+            render: t => (t ? moment(t).format('YYYY-MM-DD') : '-'),
+        },
+        {
+            title: 'Fecha Tarea',
+            dataIndex: 'fecha_tarea',
+            key: 'fecha_tarea',
+            width: 180,
+            render: t => (t ? moment(t).format('YYYY-MM-DD') : '-'),
+        },
+        {
+            title: 'Responsable Ejecución',
+            dataIndex: 'nombre_responsable',
+            key: 'nombre_responsable',
+            width: 150,
+        },
+        {
+            title: 'Avance',
+            dataIndex: 'avance',
+            key: 'avance',
+            width: 100,
+            render: a => {
+                const opt = avanceOptions.find(o => o.value === a);
+                return opt ? <Tag color={opt.color}>{opt.label.split(' - ')[1]}</Tag> : a;
+            },
+        },
+        {
+            title: 'Observación',
+            dataIndex: 'observacion',
+            key: 'observacion',
+            width: 200,
+        },
+        {
+            title: 'Enlace',
+            dataIndex: 'enlace',
+            key: 'enlace',
+            width: 200,
+            render: e => e || '-',
+        },
+        {
+            title: 'Usuario Modificador',
+            dataIndex: 'usuario_modificador',
+            key: 'usuario_modificador',
+            width: 180,
+            render: () => nombreDB, // mostrará el nombre desde el contexto
+        },
     ];
 
     const columns = [
         { title: 'Tarea', dataIndex: 'descripcion_tarea', key: 'descripcion_tarea', width: 250 },
-        { title: 'Inicio', dataIndex: 'fecha_inicio', key: 'fecha_inicio', width: 180, render: (_, r) => <DatePicker showTime value={r.fecha_inicio} onChange={d => handleFieldChange(r.key, 'fecha_inicio', d)} /> },
-        { title: 'Fin', dataIndex: 'fecha_fin', key: 'fecha_fin', width: 180, render: (_, r) => <DatePicker showTime value={r.fecha_fin} onChange={d => handleFieldChange(r.key, 'fecha_fin', d)} /> },
-        { title: 'Ejecutado', dataIndex: 'fecha_ejecucion', key: 'fecha_ejecucion', width: 180, render: (_, r) => <DatePicker showTime value={r.fecha_ejecucion} onChange={d => handleFieldChange(r.key, 'fecha_ejecucion', d)} /> },
-        {
-            title: 'Responsable', dataIndex: 'usuario_responsable', key: 'usuario_responsable', width: 180, render: (_, r) => (
-                <Select style={{ width: 150 }} value={r.usuario_responsable} onChange={v => handleFieldChange(r.key, 'usuario_responsable', v)}>
-                    {usuarios.map(u => <Option key={u.value} value={u.value}>{u.label}</Option>)}
-                </Select>
-            )
-        },
         {
             title: 'Avance', dataIndex: 'avance', key: 'avance', width: 180, render: (_, r) => (
                 <Select style={{ width: 150 }} value={r.avance} onChange={v => handleFieldChange(r.key, 'avance', v)}>
@@ -211,20 +258,42 @@ export default function GestionPrestadorTareas() {
                 </Select>
             )
         },
+        { title: 'Fecha Registro Documento', dataIndex: 'fecha_reg_doc', key: 'fecha_reg_doc', width: 200, render: (_, r) => <DatePicker format="DD/MM/YYYY" value={r.fecha_reg_doc} onChange={d => handleFieldChange(r.key, 'fecha_reg_doc', d)} /> },
+        { title: 'Fecha Tarea', dataIndex: 'fecha_tarea', key: 'fecha_tarea', width: 180, render: (_, r) => <DatePicker format="DD/MM/YYYY" value={r.fecha_tarea} onChange={d => handleFieldChange(r.key, 'fecha_tarea', d)} /> },
+
+        {
+            title: 'Responsable Ejecución', dataIndex: 'usuario_responsable', key: 'usuario_responsable', width: 180, render: (_, r) => (
+                <Select style={{ width: 150 }} value={r.usuario_responsable} onChange={v => handleFieldChange(r.key, 'usuario_responsable', v)}>
+                    {usuarios.map(u => <Option key={u.value} value={u.value}>{u.label}</Option>)}
+                </Select>
+            )
+        },
+
         { title: 'Observación', dataIndex: 'observacion', key: 'observacion', width: 200, render: (_, r) => <Input.TextArea rows={1} value={r.observacion} onChange={e => handleFieldChange(r.key, 'observacion', e.target.value)} /> },
+        { title: 'Enlace', dataIndex: 'enlace', key: 'enlace', width: 200, render: (_, r) => <Input.TextArea rows={1} value={r.enlace} onChange={e => handleFieldChange(r.key, 'enlace', e.target.value)} /> },
         {
             title: 'Acciones', key: 'acciones', width: 120, render: (_, r) => (
                 <>
                     <Button type="link" onClick={() => handleSave(r)}>Guardar</Button>
                     <Button type="link" onClick={() => showHistorial(r)}>Ver historial</Button>
+                    <Button type="link" onClick={() => handleDelete(r)}>Limpiar Todo</Button>
                 </>
             )
         },
     ];
 
-    const filteredRows = rows.filter(r =>
-        r.descripcion_tarea.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Aplica filtros: búsqueda, año y rango de fechas
+    const filteredRows = rows
+        .filter(r => r.descripcion_tarea.toLowerCase().includes(searchTerm.toLowerCase()))
+        .filter(r => {
+            if (filterRange[0] && filterRange[1]) {
+                return r.fecha_tarea && r.fecha_tarea.isBetween(filterRange[0], filterRange[1], 'day', '[]');
+            }
+            if (filterYear) {
+                return r.fecha_tarea && r.fecha_tarea.year() === filterYear.year();
+            }
+            return true;
+        });
 
     return (
         <ConfigProvider
@@ -244,11 +313,21 @@ export default function GestionPrestadorTareas() {
                 <div style={{ padding: 24, minHeight: '100vh', background: '#111827' }}>
                     <Button onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>Atrás</Button>
                     <Title level={3} style={{ color: '#fff' }}>Gestión de Tareas {empresaNombre}</Title>
-                    <Search
-                        placeholder="Buscar tareas"
-                        onChange={e => setSearchTerm(e.target.value)}
-                        style={{ width: 300, margin: '16px 0', background: '#1f2937', color: '#fff' }}
-                    />
+                    <div style={{ display: 'flex', gap: '16px', margin: '16px 0' }}>
+                        <Search
+                            placeholder="Buscar tareas"
+                            onChange={e => setSearchTerm(e.target.value)}
+                            style={{ width: 300, background: '#1f2937', color: '#fff' }}
+                        />
+                        <DatePicker
+                            picker="year"
+                            placeholder="Filtrar por Año"
+                            allowClear
+                            onChange={date => setFilterYear(date)}
+                            style={{ width: 150 }}
+                        />
+
+                    </div>
 
                     {loading ? (
                         <Spin />
